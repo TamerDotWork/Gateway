@@ -1,10 +1,12 @@
-import google.generativeai as genai
+from google import genai
 
 
-genai.configure(api_key="YOUR_GEMINI_API_KEY")
 
-model = genai.GenerativeModel("gemini-flash-latest")
+client = genai.Client(api_key="YOUR_API_KEY")
 
-response = model.generate_content("Write a 3-line poem about Python programming.")
+response = client.models.generate_content(
+    model="gemini-flash-latest", 
+    contents="What is the capital of France?"
+)
 
 print(response.text)

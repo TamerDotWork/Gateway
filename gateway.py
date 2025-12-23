@@ -1,3 +1,4 @@
+# gateway.py
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from google import genai
@@ -7,6 +8,7 @@ from typing import List
 app = FastAPI()
 
 # --- CONFIG ---
+# Replace with your actual API Key
 client = genai.Client(api_key="YOUR_API_KEY")
 
 # --- STATE ---
@@ -32,6 +34,7 @@ class StatsManager:
             self.active_connections.remove(websocket)
 
     async def broadcast(self):
+        # Broadcast to all connected clients
         for connection in self.active_connections[:]:
             try:
                 await connection.send_json(stats)
@@ -41,8 +44,9 @@ class StatsManager:
 stats_manager = StatsManager()
 
 # --- 1. DASHBOARD UI ---
-@app.get("/")
-@app.get("/Gateway/") 
+# CRITICAL FIX: Added response_class=HTMLResponse so browser renders it as a webpage
+@app.get("/", response_class=HTMLResponse)
+@app.get("/Gateway/", response_class=HTMLResponse) 
 async def dashboard_page():
     return """
     <html>
@@ -72,12 +76,10 @@ async def dashboard_page():
                 </p>
             </div>
             <script>
-                // --- FIX FOR MIXED CONTENT ERROR ---
-                // 1. Detect if we are on HTTPS or HTTP
+                // 1. AUTO-DETECT PROTOCOL (wss vs ws)
                 const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
                 
-                // 2. Build the correct URL (e.g., wss://ai.tamer.work/Gateway/)
-                // This ensures we attach to the current path (/Gateway/ or /)
+                // 2. AUTO-DETECT PATH (Handle /Gateway/ vs /)
                 const path = window.location.pathname.endsWith('/') ? window.location.pathname : window.location.pathname + '/';
                 const wsUrl = `${protocol}://${window.location.host}${path}`;
                 
@@ -88,11 +90,13 @@ async def dashboard_page():
                 const statusText = document.getElementById("status-text");
 
                 ws.onopen = () => {
-                    dot.style.backgroundColor = "#00ff00"; 
+                    dot.style.backgroundColor = "#00ff00"; // Green
                     statusText.innerText = "Live Connected";
                     
-                    // Keep connection alive
-                    setInterval(() => { if (ws.readyState === WebSocket.OPEN) ws.send("ping"); }, 1000);
+                    // Keep-alive ping every 1 second
+                    setInterval(() => { 
+                        if (ws.readyState === WebSocket.OPEN) ws.send("ping"); 
+                    }, 1000);
                 };
 
                 ws.onmessage = function(event) {
@@ -119,6 +123,7 @@ async def websocket_dashboard(websocket: WebSocket):
     await stats_manager.connect(websocket)
     try:
         while True:
+            # Keep connection alive
             await websocket.receive_text()
     except:
         stats_manager.disconnect(websocket)
@@ -129,10 +134,12 @@ async def websocket_dashboard(websocket: WebSocket):
 async def websocket_chat(websocket: WebSocket):
     await websocket.accept()
     global stats
+    print("Chat client connected")
     
     try:
         while True:
             prompt = await websocket.receive_text()
+            print(f"Prompt: {prompt}")
             
             stats["requests_from_user"] += 1
             stats["last_prompt"] = prompt[:50]
@@ -144,7 +151,6 @@ async def websocket_chat(websocket: WebSocket):
                     contents=prompt
                 )
                 await websocket.send_text(response.text)
-                
                 stats["responses_from_llm"] += 1
                 await stats_manager.broadcast()
             except Exception as e:

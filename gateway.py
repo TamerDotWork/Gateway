@@ -1,4 +1,3 @@
-# gateway.py
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from google import genai
@@ -27,17 +26,21 @@ class StatsManager:
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
         self.active_connections.append(websocket)
-        await websocket.send_json(stats) # Send initial data
+        # Send initial data immediately upon connection
+        await websocket.send_json(stats) 
 
     def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
 
     async def broadcast(self):
-        for connection in self.active_connections:
+        # Iterate over a copy to avoid modification issues during iteration
+        for connection in self.active_connections[:]:
             try:
                 await connection.send_json(stats)
             except:
-                pass
+                # Remove dead connections
+                self.disconnect(connection)
 
 stats_manager = StatsManager()
 
@@ -54,6 +57,7 @@ async def dashboard_page():
                 h1 { color: #00ffcc; border-bottom: 1px solid #444; padding-bottom: 10px; }
                 .stat { font-size: 1.2em; margin: 10px 0; display: flex; justify-content: space-between; }
                 .value { font-weight: bold; color: #ffcc00; }
+                .status-dot { height: 10px; width: 10px; background-color: #bbb; border-radius: 50%; display: inline-block; margin-right: 5px;}
             </style>
         </head>
         <body>
@@ -66,17 +70,50 @@ async def dashboard_page():
                 <div style="font-size: 0.8em; color: #888;">
                     <strong>Last Prompt:</strong><br> <span id="last_p">None</span>
                 </div>
-                <p style="text-align: center; font-size: 0.7em; color: #666;">🟢 Real-time WebSocket Stream</p>
+                <p style="text-align: center; font-size: 0.7em; color: #666; margin-top: 20px;">
+                    <span id="dot" class="status-dot"></span> <span id="status-text">Connecting...</span>
+                </p>
             </div>
             <script>
-                // Connect to the WebSocket at the same URI path "/"
-                const ws = new WebSocket(`ws://${window.location.host}/`);
+                // 1. AUTO-DETECT PROTOCOL (Fixes Mixed Content Errors)
+                // If site is loaded via https, use wss. If http, use ws.
+                const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+                const wsUrl = `${protocol}://${window.location.host}/`;
+                
+                console.log("Connecting to WebSocket:", wsUrl);
+                const ws = new WebSocket(wsUrl);
+
+                const dot = document.getElementById("dot");
+                const statusText = document.getElementById("status-text");
+
+                ws.onopen = () => {
+                    dot.style.backgroundColor = "#00ff00"; // Green
+                    statusText.innerText = "Live Connected";
+                    
+                    // 2. KEEP-ALIVE HEARTBEAT (Fixes Timeout Disconnects)
+                    // Send a ping every 1 second to keep the connection open
+                    setInterval(() => {
+                        if (ws.readyState === WebSocket.OPEN) {
+                            ws.send("ping");
+                        }
+                    }, 1000);
+                };
+
                 ws.onmessage = function(event) {
                     const data = JSON.parse(event.data);
                     document.getElementById("req").innerText = data.requests_from_user;
                     document.getElementById("res").innerText = data.responses_from_llm;
                     document.getElementById("err").innerText = data.errors;
                     document.getElementById("last_p").innerText = data.last_prompt;
+                };
+
+                ws.onclose = () => {
+                    dot.style.backgroundColor = "red";
+                    statusText.innerText = "Disconnected (Refresh to reconnect)";
+                };
+                
+                ws.onerror = (e) => {
+                    console.error("WebSocket Error:", e);
                 };
             </script>
         </body>
@@ -89,8 +126,15 @@ async def websocket_dashboard(websocket: WebSocket):
     await stats_manager.connect(websocket)
     try:
         while True:
-            await websocket.receive_text() # Keep connection alive
+            # We must await receive_text() to keep the connection open.
+            # The JS now sends "ping" every second, which is received here.
+            # We ignore the content of the ping, but it prevents the loop from finishing.
+            data = await websocket.receive_text()
+            # (Optional) We could print(data) here to see "ping" logs
     except WebSocketDisconnect:
+        stats_manager.disconnect(websocket)
+    except Exception as e:
+        print(f"Dashboard WS Error: {e}")
         stats_manager.disconnect(websocket)
 
 # --- 3. CHAT PROXY (WS /chat) ---
@@ -103,16 +147,18 @@ async def websocket_chat(websocket: WebSocket):
         while True:
             # Receive prompt from app.py
             prompt = await websocket.receive_text()
+            print(f"Received prompt: {prompt}")
             
             # Update stats
             stats["requests_from_user"] += 1
-            stats["last_prompt"] = prompt[:50]
+            stats["last_prompt"] = prompt[:50] # Store only first 50 chars
             await stats_manager.broadcast() # Update Dashboard
 
             try:
                 # Call Gemini
+                # Note: 'gemini-1.5-flash' is more stable than 'flash-latest'
                 response = client.models.generate_content(
-                    model="gemini-flash-latest",
+                    model="gemini-flash-latest", 
                     contents=prompt
                 )
                 
@@ -124,12 +170,14 @@ async def websocket_chat(websocket: WebSocket):
                 await stats_manager.broadcast() # Update Dashboard
 
             except Exception as e:
+                print(f"LLM Error: {e}")
                 stats["errors"] += 1
-                await websocket.send_text(f"Error: {e}")
+                await websocket.send_text(f"Error processing request: {str(e)}")
                 await stats_manager.broadcast()
 
     except WebSocketDisconnect:
-        print("Client disconnected")
+        print("Client disconnected from chat")
 
 if __name__ == "__main__":
+    # Host 0.0.0.0 is required for external access (e.g. via Nginx/Docker)
     uvicorn.run(app, host="0.0.0.0", port=5013)

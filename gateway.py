@@ -7,7 +7,6 @@ from typing import List
 app = FastAPI()
 
 # --- CONFIG ---
-# Replace with your actual API Key
 client = genai.Client(api_key="YOUR_API_KEY")
 
 # --- STATE ---
@@ -18,7 +17,7 @@ stats = {
     "last_prompt": "None"
 }
 
-# --- STATS BROADCASTER ---
+# --- STATS MANAGER ---
 class StatsManager:
     def __init__(self):
         self.active_connections: List[WebSocket] = []
@@ -26,26 +25,24 @@ class StatsManager:
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
         self.active_connections.append(websocket)
-        # Send initial data immediately upon connection
-        await websocket.send_json(stats) 
+        await websocket.send_json(stats)
 
     def disconnect(self, websocket: WebSocket):
         if websocket in self.active_connections:
             self.active_connections.remove(websocket)
 
     async def broadcast(self):
-        # Iterate over a copy to avoid modification issues during iteration
         for connection in self.active_connections[:]:
             try:
                 await connection.send_json(stats)
             except:
-                # Remove dead connections
                 self.disconnect(connection)
 
 stats_manager = StatsManager()
 
-# --- 1. DASHBOARD UI (Browser) ---
-@app.get("/", response_class=HTMLResponse)
+# --- 1. DASHBOARD UI ---
+@app.get("/")
+@app.get("/Gateway/") 
 async def dashboard_page():
     return """
     <html>
@@ -75,10 +72,14 @@ async def dashboard_page():
                 </p>
             </div>
             <script>
-                // 1. AUTO-DETECT PROTOCOL (Fixes Mixed Content Errors)
-                // If site is loaded via https, use wss. If http, use ws.
+                // --- FIX FOR MIXED CONTENT ERROR ---
+                // 1. Detect if we are on HTTPS or HTTP
                 const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-                const wsUrl = `${protocol}://${window.location.host}/`;
+                
+                // 2. Build the correct URL (e.g., wss://ai.tamer.work/Gateway/)
+                // This ensures we attach to the current path (/Gateway/ or /)
+                const path = window.location.pathname.endsWith('/') ? window.location.pathname : window.location.pathname + '/';
+                const wsUrl = `${protocol}://${window.location.host}${path}`;
                 
                 console.log("Connecting to WebSocket:", wsUrl);
                 const ws = new WebSocket(wsUrl);
@@ -87,16 +88,11 @@ async def dashboard_page():
                 const statusText = document.getElementById("status-text");
 
                 ws.onopen = () => {
-                    dot.style.backgroundColor = "#00ff00"; // Green
+                    dot.style.backgroundColor = "#00ff00"; 
                     statusText.innerText = "Live Connected";
                     
-                    // 2. KEEP-ALIVE HEARTBEAT (Fixes Timeout Disconnects)
-                    // Send a ping every 1 second to keep the connection open
-                    setInterval(() => {
-                        if (ws.readyState === WebSocket.OPEN) {
-                            ws.send("ping");
-                        }
-                    }, 1000);
+                    // Keep connection alive
+                    setInterval(() => { if (ws.readyState === WebSocket.OPEN) ws.send("ping"); }, 1000);
                 };
 
                 ws.onmessage = function(event) {
@@ -109,75 +105,55 @@ async def dashboard_page():
 
                 ws.onclose = () => {
                     dot.style.backgroundColor = "red";
-                    statusText.innerText = "Disconnected (Refresh to reconnect)";
-                };
-                
-                ws.onerror = (e) => {
-                    console.error("WebSocket Error:", e);
+                    statusText.innerText = "Disconnected";
                 };
             </script>
         </body>
     </html>
     """
 
-# --- 2. DASHBOARD DATA STREAM (WS /) ---
+# --- 2. DASHBOARD STREAM ---
 @app.websocket("/")
+@app.websocket("/Gateway/")
 async def websocket_dashboard(websocket: WebSocket):
     await stats_manager.connect(websocket)
     try:
         while True:
-            # We must await receive_text() to keep the connection open.
-            # The JS now sends "ping" every second, which is received here.
-            # We ignore the content of the ping, but it prevents the loop from finishing.
-            data = await websocket.receive_text()
-            # (Optional) We could print(data) here to see "ping" logs
-    except WebSocketDisconnect:
-        stats_manager.disconnect(websocket)
-    except Exception as e:
-        print(f"Dashboard WS Error: {e}")
+            await websocket.receive_text()
+    except:
         stats_manager.disconnect(websocket)
 
-# --- 3. CHAT PROXY (WS /chat) ---
+# --- 3. CHAT PROXY ---
 @app.websocket("/chat")
+@app.websocket("/Gateway/chat")
 async def websocket_chat(websocket: WebSocket):
     await websocket.accept()
     global stats
     
     try:
         while True:
-            # Receive prompt from app.py
             prompt = await websocket.receive_text()
-            print(f"Received prompt: {prompt}")
             
-            # Update stats
             stats["requests_from_user"] += 1
-            stats["last_prompt"] = prompt[:50] # Store only first 50 chars
-            await stats_manager.broadcast() # Update Dashboard
+            stats["last_prompt"] = prompt[:50]
+            await stats_manager.broadcast()
 
             try:
-                # Call Gemini
-                # Note: 'gemini-1.5-flash' is more stable than 'flash-latest'
                 response = client.models.generate_content(
-                    model="gemini-flash-latest", 
+                    model="gemini-1.5-flash", 
                     contents=prompt
                 )
-                
-                # Send text back to app.py
                 await websocket.send_text(response.text)
                 
-                # Update stats
                 stats["responses_from_llm"] += 1
-                await stats_manager.broadcast() # Update Dashboard
-
+                await stats_manager.broadcast()
             except Exception as e:
-                print(f"LLM Error: {e}")
                 stats["errors"] += 1
-                await websocket.send_text(f"Error processing request: {str(e)}")
+                await websocket.send_text(f"Error: {str(e)}")
                 await stats_manager.broadcast()
 
     except WebSocketDisconnect:
-        print("Client disconnected from chat")
+        print("Client disconnected")
 
 if __name__ == "__main__":
-    # Host 0.0.0.0 is required for external access (e.g. via Nginx/Docker)
     uvicorn.run(app, host="0.0.0.0", port=5013)

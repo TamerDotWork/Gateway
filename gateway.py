@@ -6,6 +6,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.templating import Jinja2Templates
 from google import genai
 from typing import List
+from fastapi.staticfiles import StaticFiles  # <--- 1. IMPORT THIS
 
 # --- CONFIGURATION ---
 # 1. Load environment variables from .env file

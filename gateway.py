@@ -70,8 +70,8 @@ async def dashboard_page(request: Request):
     return templates.TemplateResponse("dashboard.html", {"request": request})
 
 # --- 2. DASHBOARD DATA STREAM ---
-@app.websocket("/")
-@app.websocket("/Gateway/")
+@app.get("/", response_class=HTMLResponse)
+@app.get("/Gateway/", response_class=HTMLResponse) 
 async def websocket_dashboard(websocket: WebSocket):
     await stats_manager.connect(websocket)
     try:

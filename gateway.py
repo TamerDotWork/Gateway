@@ -63,15 +63,15 @@ class StatsManager:
 stats_manager = StatsManager()
 
 # --- 1. DASHBOARD PAGE (Jinja) ---
-@app.get("/", response_class=HTMLResponse)
-@app.get("/Gateway/", response_class=HTMLResponse) 
+@app.get("/")
+@app.get("/Gateway/") 
 async def dashboard_page(request: Request):
     # Returns the HTML file using Jinja2
     return templates.TemplateResponse("dashboard.html", {"request": request})
 
 # --- 2. DASHBOARD DATA STREAM ---
-@app.get("/", response_class=HTMLResponse)
-@app.get("/Gateway/", response_class=HTMLResponse) 
+@app.get("/")
+@app.get("/Gateway/") 
 async def websocket_dashboard(websocket: WebSocket):
     await stats_manager.connect(websocket)
     try:

@@ -2,15 +2,14 @@ import uvicorn
 import asyncio
 import os
 from dotenv import load_dotenv
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request ,responses
 from fastapi.templating import Jinja2Templates
 from google import genai
 from typing import List
 from fastapi import FastAPI, Request
-from fastapi.responses
-import HTMLResponse from fastapi.templating
-import Jinja2Templates from fastapi.staticfiles
-import StaticFiles
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
 # --- CONFIGURATION ---
 # 1. Load environment variables from .env file
 load_dotenv()

@@ -4,7 +4,10 @@
 <head>
     <title>The Gateway</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-     <style>
+    <link rel="stylesheet" href="static/css/style.css">
+    <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}">
+
+    <style>
         @import url('https://fonts.googleapis.com/css2?family=Google+Sans:ital,opsz,wght@0,17..18,400..700;1,17..18,400..700&display=swap');
 
 html {
@@ -311,7 +314,7 @@ p {
         </div>
     </main>
     <script src="static/js/script.js"></script>
- 
+    <script src="{{ url_for('static', path='script.js') }}"></script>
     <script>
                     // Dynamic WebSocket URL generation
             const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';

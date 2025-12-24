@@ -23,7 +23,7 @@ app = FastAPI()
 client = genai.Client(api_key=API_KEY)
 
 
-app.mount("/Gateway/static", StaticFiles(directory="static"), name="static") 
+app.mount("Gateway/static", StaticFiles(directory="static"), name="static") 
 templates = Jinja2Templates(directory="templates")
 # --- GLOBAL STATE ---
 stats = {

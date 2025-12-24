@@ -17,18 +17,10 @@ load_dotenv()
 API_KEY = os.getenv("GOOGLE_API_KEY")
 if not API_KEY:
     raise ValueError("API Key not found! Make sure you have a .env file with GOOGLE_API_KEY inside.")
+
 app = FastAPI()
-
-templates = Jinja2Templates(directory="templates")
-
-
-if not os.path.exists("static"):
-    os.makedirs("static")
-if not os.path.exists("static/css"):
-    os.makedirs("static/css")
-if not os.path.exists("static/js"):
-    os.makedirs("static/js")
 app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
 
 # --- GLOBAL STATE ---
 stats = {
@@ -63,8 +55,8 @@ class StatsManager:
 stats_manager = StatsManager()
 
 # --- 1. DASHBOARD PAGE (Jinja) ---
-@app.get("/")
-@app.get("/Gateway/") 
+@app.get("/", response_class=HTMLResponse)
+@app.get("/Gateway/", response_class=HTMLResponse)
 async def dashboard_page(request: Request):
     # Returns the HTML file using Jinja2
     return templates.TemplateResponse("dashboard.html", {"request": request})

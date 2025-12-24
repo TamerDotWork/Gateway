@@ -7,6 +7,7 @@ from fastapi.templating import Jinja2Templates
 from google import genai
 from typing import List
 from fastapi.staticfiles import StaticFiles  # <--- 1. IMPORT THIS
+from fastapi.responses import HTMLResponse  # <--- ADD THIS
 
 # --- CONFIGURATION ---
 # 1. Load environment variables from .env file

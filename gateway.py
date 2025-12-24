@@ -62,8 +62,8 @@ class StatsManager:
 stats_manager = StatsManager()
 
 # --- 1. DASHBOARD PAGE (Jinja) ---
-@app.get("/")
-@app.get("/Gateway/") 
+@app.get("/", response_class=HTMLResponse)
+@app.get("/Gateway/", response_class=HTMLResponse) 
 async def dashboard_page(request: Request):
     # Returns the HTML file using Jinja2
     return templates.TemplateResponse("dashboard.html", {"request": request})

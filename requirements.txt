@@ -4,3 +4,4 @@ python-dotenv
 jinja2
 google-genai
 websockets
+aiofiles

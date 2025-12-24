@@ -17,18 +17,18 @@ load_dotenv()
 API_KEY = os.getenv("GOOGLE_API_KEY")
 if not API_KEY:
     raise ValueError("API Key not found! Make sure you have a .env file with GOOGLE_API_KEY inside.")
-
 app = FastAPI()
-client = genai.Client(api_key=API_KEY)
 
 templates = Jinja2Templates(directory="templates")
 
 
 if not os.path.exists("static"):
     os.makedirs("static")
-
+if not os.path.exists("static/css"):
+    os.makedirs("static/css")
+if not os.path.exists("static/js"):
+    os.makedirs("static/js")
 app.mount("/static", StaticFiles(directory="static"), name="static")
-
 
 # --- GLOBAL STATE ---
 stats = {

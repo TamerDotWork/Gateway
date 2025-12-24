@@ -20,9 +20,16 @@ if not API_KEY:
 app = FastAPI()
 client = genai.Client(api_key=API_KEY)
 
-# 3. Setup Templates (looks for the 'templates' folder)
 templates = Jinja2Templates(directory="templates")
-app.mount("/static", StaticFiles(directory="static"), name="static") # <--- 2. ADD THIS
+
+
+if not os.path.exists("static"):
+    os.makedirs("static")
+if not os.path.exists("static/css"):
+    os.makedirs("static/css")
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 
 # --- GLOBAL STATE ---
 stats = {

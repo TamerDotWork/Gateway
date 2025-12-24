@@ -17,6 +17,7 @@ load_dotenv()
 API_KEY = os.getenv("GOOGLE_API_KEY")
 if not API_KEY:
     raise ValueError("API Key not found! Make sure you have a .env file with GOOGLE_API_KEY inside.")
+client = genai.Client(api_key=API_KEY)  # <--- MUST BE HERE
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")

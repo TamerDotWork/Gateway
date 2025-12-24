@@ -2,7 +2,6 @@ import asyncio
 import websockets
 
 async def chat_with_gateway():
-    # Correct URI for your setup
     uri = "wss://ai.tamer.work/Gateway/chat"
     
     print(f"Connecting to: {uri} ...")

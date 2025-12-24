@@ -6,7 +6,8 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.templating import Jinja2Templates
 from google import genai
 from typing import List
-from fastapi import FastAPI, Request from fastapi.responses 
+from fastapi import FastAPI, Request 
+from fastapi.responses 
 import HTMLResponse from fastapi.templating 
 import Jinja2Templates from fastapi.staticfiles 
 import StaticFiles

@@ -6,8 +6,6 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.templating import Jinja2Templates
 from google import genai
 from typing import List
-from fastapi.staticfiles import StaticFiles  # <--- 1. IMPORT THIS
-from fastapi.responses import HTMLResponse  # <--- ADD THIS
 
 # --- CONFIGURATION ---
 # 1. Load environment variables from .env file
@@ -17,10 +15,11 @@ load_dotenv()
 API_KEY = os.getenv("GOOGLE_API_KEY")
 if not API_KEY:
     raise ValueError("API Key not found! Make sure you have a .env file with GOOGLE_API_KEY inside.")
-client = genai.Client(api_key=API_KEY)  # <--- MUST BE HERE
 
 app = FastAPI()
-app.mount("/static", StaticFiles(directory="static"), name="static")
+client = genai.Client(api_key=API_KEY)
+
+# 3. Setup Templates (looks for the 'templates' folder)
 templates = Jinja2Templates(directory="templates")
 
 # --- GLOBAL STATE ---
@@ -56,15 +55,15 @@ class StatsManager:
 stats_manager = StatsManager()
 
 # --- 1. DASHBOARD PAGE (Jinja) ---
-@app.get("/", response_class=HTMLResponse)
-@app.get("/Gateway/", response_class=HTMLResponse)
+@app.get("/")
+@app.get("/Gateway/") 
 async def dashboard_page(request: Request):
     # Returns the HTML file using Jinja2
     return templates.TemplateResponse("dashboard.html", {"request": request})
 
 # --- 2. DASHBOARD DATA STREAM ---
-@app.get("/")
-@app.get("/Gateway/") 
+@app.websocket("/")
+@app.websocket("/Gateway/")
 async def websocket_dashboard(websocket: WebSocket):
     await stats_manager.connect(websocket)
     try:

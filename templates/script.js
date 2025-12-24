@@ -12,9 +12,15 @@
             const ws = new WebSocket(wsUrl);
             const dot = document.getElementById("dot");
             const statusText = document.getElementById("status-text");
+            const statusContainer = document.getElementByClass("tag");
 
             ws.onopen = () => {
-                dot.style.backgroundColor = "#00ff00";
+                
+                dot.classList.remove("failure");
+                dot.classList.add("success");
+                statusContainer.classList.remove("failure");
+                statusContainer.classList.add("success");
+                // dot.style.backgroundColor = "#00ff00";
                 statusText.innerText = "Live Connected";
                 // Keep-alive ping
                 setInterval(() => { if(ws.readyState===1) ws.send("ping"); }, 2000);
@@ -35,6 +41,10 @@
             };
 
             ws.onclose = () => {
-                dot.style.backgroundColor = "red";
+                dot.classList.remove("success");
+                dot.classList.add("failure");
+                statusContainer.classList.remove("success");
+                statusContainer.classList.add("failure");
+                // dot.style.backgroundColor = "red";
                 statusText.innerText = "Disconnected";
             };

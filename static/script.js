@@ -12,7 +12,7 @@
             const ws = new WebSocket(wsUrl);
             const dot = document.getElementById("dot");
             const statusText = document.getElementById("status-text");
-            const statusContainer = document.getElementByClass("tag");
+            const statusContainer = document.getElementById("tag");
 
             ws.onopen = () => {
                 

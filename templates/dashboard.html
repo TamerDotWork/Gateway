@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>The Gateway</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <header>
+        <div class="container">
+            <div class="head">
+                <div class="logo"><a href="./index.html" class="logo">Gateway</a></div>
+                <div class="main-menu">Home</div>
+                <div class="settings"><a href="#" class="settings">Settings</a></div>
+            </div>
+        </div>
+    </header>
+    <section>
+        <div class="container">
+            <div class="breadcrumb">
+                <a href="#" class="btn btn-link">Back</a>
+                <ul class="">
+                    <li><a href="#">Projects</a></li>
+                    <li><a href="#">RAG System</a></li>
+
+                </ul>
+            </div>
+            <di id="status">
+                <a href="#" class="tag "><span id="dot" class="status-dot"></span> <span id="status-text">Connecting...</span></a>
+            </di>
+            <h3>Project name RAG system</h3>
+        </div>
+    </section>
+
+    <main>
+        
+        <div class="stage">
+            <div class="container">stage</div>
+        </div>
+
+
+        <div class="insights">
+            <div class="container">
+                <strong>Insights summary</strong>
+                <div class="row">
+                    <div class="card stat">
+                        User Requests:<span id="req" class="value">0</span>
+                    </div>
+                    <div class="card stat">
+                        LLM Responses:<span id="res" class="value">0</span>
+                    </div>
+                    <div class="card stat">
+                        Total Errors:<span id="err" class="value"  >0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    <script src="script.js"></script>
+</body>
+
+</html>

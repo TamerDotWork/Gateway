@@ -25,8 +25,6 @@ templates = Jinja2Templates(directory="templates")
 
 if not os.path.exists("static"):
     os.makedirs("static")
-if not os.path.exists("static/css"):
-    os.makedirs("static/css")
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 

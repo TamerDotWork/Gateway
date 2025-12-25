@@ -2,7 +2,7 @@ import asyncio
 import websockets
 
 async def chat_with_gateway():
-    # uri = "wss://ai.tamer.work/Gateway/chat"
+    uri = "wss://ai.tamer.work/Gateway/chat"
     
     uri = "ws://127.0.0.1:5013/Gateway/chat"
     

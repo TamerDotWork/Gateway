@@ -15,6 +15,8 @@ import agent   # This assumes agent.py exists and handles governance
 load_dotenv()
 
 API_KEY = os.getenv("GOOGLE_API_KEY")
+if not API_KEY:
+    raise ValueError("API Key not found!")
 
 app = FastAPI()
 
@@ -41,7 +43,7 @@ async def dashboard_page(request: Request):
         try:
             # Execute the target script
             # Any print statements inside minimal.py will now go to log_capture_string
-            runpy.run_path(target_script, run_name="__main__")
+            runpy.run_path(target_script)
             print(f"✅ {target_script} executed successfully.")
         except Exception as e:
             print(f"\n❌ Application Error during {target_script} execution: {e}")

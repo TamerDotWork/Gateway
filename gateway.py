@@ -4,9 +4,10 @@ import sys
 import runpy
 import threading
 import queue
+import time
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import StreamingResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 
@@ -21,7 +22,7 @@ app = FastAPI()
 app.mount("/Gateway/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-# --- Redirector Class ---
+# --- Helper: Output Redirector ---
 class OutputRedirector:
     def __init__(self, q):
         self.q = q
@@ -30,61 +31,62 @@ class OutputRedirector:
     def flush(self):
         pass
 
-# --- Generator Function ---
-def script_output_generator(target_script):
-    log_queue = queue.Queue()
+@app.get("/", response_class=StreamingResponse)
+@app.get("/Gateway/", response_class=StreamingResponse)
+async def dashboard_page(request: Request):
+    """
+    Executes 'minimal.py' and streams the output directly into the
+    Jinja2 dashboard template.
+    """
+    target_script = "minimal.py"
     
-    def run_script_in_thread():
-        # Capture standard output
+    # 1. Create a Queue to hold the log output
+    log_queue = queue.Queue()
+
+    # 2. Define the background worker that runs the script
+    def script_worker():
+        # Redirect stdout/stderr to the queue
         original_stdout = sys.stdout
         original_stderr = sys.stderr
-        
-        # Redirect to our queue
         sys.stdout = OutputRedirector(log_queue)
         sys.stderr = OutputRedirector(log_queue)
         
         try:
-            log_queue.put(f"🚀 Initializing {target_script}...\n")
-            log_queue.put("-" * 50 + "\n")
+            print(f"🚀 Launching {target_script} via Governance Gateway...")
+            print("-" * 50)
             
-            # Run the user script
+            # Execute the user's script
             runpy.run_path(target_script, run_name="__main__")
             
-            log_queue.put(f"\n✅ {target_script} finished successfully.\n")
+            print(f"\n✅ {target_script} executed successfully.")
         except Exception as e:
-            log_queue.put(f"\n❌ Execution Error: {e}\n")
+            print(f"\n❌ Application Error: {e}")
         finally:
+            # Restore stdout and signal end
             sys.stdout = original_stdout
             sys.stderr = original_stderr
-            log_queue.put(None) # Signal end
+            log_queue.put(None) # None indicates the stream is finished
 
-    # Start thread
-    thread = threading.Thread(target=run_script_in_thread)
+    # 3. Start the script in a separate thread so it doesn't block
+    thread = threading.Thread(target=script_worker)
     thread.start()
 
-    # Yield output to the browser as it becomes available
-    while True:
-        data = log_queue.get()
-        if data is None:
-            break
-        yield data
+    # 4. Define a generator that yields data to the Jinja template
+    def log_generator():
+        while True:
+            data = log_queue.get()
+            if data is None:
+                break
+            yield data
 
-@app.get("/", response_class=HTMLResponse)
-@app.get("/Gateway/", response_class=HTMLResponse)
-async def dashboard_page(request: Request):
-    """
-    Renders the HTML container first.
-    """
-    return templates.TemplateResponse("dashboard.html", {"request": request})
+    # 5. Get the template object directly
+    template = templates.get_template("dashboard.html")
 
-@app.get("/stream-script")
-async def stream_script():
-    """
-    The JS calls this automatically to get the live log stream.
-    """
+    # 6. Stream the response. 
+    # We pass 'log_generator()' as the variable 'output_stream' to the template.
     return StreamingResponse(
-        script_output_generator("minimal.py"), 
-        media_type="text/plain"
+        template.generate(request=request, output_stream=log_generator()),
+        media_type="text/html"
     )
 
 if __name__ == "__main__":

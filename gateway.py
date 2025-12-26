@@ -42,35 +42,35 @@ async def main_action(request: Request):
     # Create a string buffer to capture output
     log_capture_string = io.StringIO()
 
-            # 2. Call Google AI
-            try:
-                # Synchronous call wrapped in async if needed
-                response = client.models.generate_content(
-                    model="gemini-flash-latest", 
-                    contents=prompt
-                )
-                response_text = response.text
-                
-                # Add token counting:
-                input_tokens = response.usage_metadata.prompt_token_count
-                output_tokens = response.usage_metadata.candidates_token_count
-                total_tokens = response.usage_metadata.total_token_count
+    # 2. Call Google AI
+    try:
+        # Synchronous call wrapped in async if needed
+        response = client.models.generate_content(
+            model="gemini-flash-latest", 
+            contents=prompt
+        )
+        response_text = response.text
+        
+        # Add token counting:
+        input_tokens = response.usage_metadata.prompt_token_count
+        output_tokens = response.usage_metadata.candidates_token_count
+        total_tokens = response.usage_metadata.total_token_count
 
 
-                # 3. Send Response
-                await websocket.send_text(response_text)
-                stats["responses_from_llm"] += 1
-                stats["total_input_tokens"] += input_tokens
-                stats["total_output_tokens"] += output_tokens
-                stats["total_tokens_used"] += total_tokens
-                await stats_manager.broadcast()
+        # 3. Send Response
+        await websocket.send_text(response_text)
+        stats["responses_from_llm"] += 1
+        stats["total_input_tokens"] += input_tokens
+        stats["total_output_tokens"] += output_tokens
+        stats["total_tokens_used"] += total_tokens
+        await stats_manager.broadcast()
 
-                
-            except Exception as e:
-                print(f"AI Error: {e}")
-                stats["errors"] += 1
-                await websocket.send_text(f"Error processing request: {str(e)}")
-                await stats_manager.broadcast()
+        
+    except Exception as e:
+        print(f"AI Error: {e}")
+        stats["errors"] += 1
+        await websocket.send_text(f"Error processing request: {str(e)}")
+        await stats_manager.broadcast()
 
         try:
             # Execute the target script

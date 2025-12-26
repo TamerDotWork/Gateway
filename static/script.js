@@ -1,3 +1,4 @@
+<<<<<<< HEAD
             // Dynamic WebSocket URL generation
             const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
             
@@ -57,3 +58,5 @@
                 // dot.style.backgroundColor = "red";
                 statusText.innerText = "Disconnected";
             };
+=======
+>>>>>>> a0a57232adcb3c525b1c93076bb4dfb310a96de1

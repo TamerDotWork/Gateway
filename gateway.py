@@ -1,30 +1,28 @@
 import uvicorn
-import asyncio
 import os
+import io
+import contextlib
+import runpy
 from dotenv import load_dotenv
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request ,responses
-from fastapi.templating import Jinja2Templates
-from google import genai
-from typing import List
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-# --- CONFIGURATION ---
-# 1. Load environment variables from .env file
+
+# Imports for running external scripts
+import agent   # This assumes agent.py exists and handles governance
+
 load_dotenv()
 
-# 2. Retrieve API Key
 API_KEY = os.getenv("GOOGLE_API_KEY")
 if not API_KEY:
-    raise ValueError("API Key not found! Make sure you have a .env file with GOOGLE_API_KEY inside.")
+    raise ValueError("API Key not found!")
 
 app = FastAPI()
-client = genai.Client(api_key=API_KEY)
 
-
-app.mount("/Gateway/static", StaticFiles(directory="static"), name="static") 
+app.mount("/Gateway/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
+<<<<<<< HEAD
 # --- GLOBAL STATE ---
 stats = {
     "requests_from_user": 0,
@@ -35,69 +33,19 @@ stats = {
     "total_output_tokens": 0,
     "total_tokens_used": 0,
 }
+=======
+>>>>>>> a0a57232adcb3c525b1c93076bb4dfb310a96de1
 
-# --- CONNECTION MANAGER ---
-class StatsManager:
-    def __init__(self):
-        self.active_connections: List[WebSocket] = []
-
-    async def connect(self, websocket: WebSocket):
-        await websocket.accept()
-        self.active_connections.append(websocket)
-        # Send initial stats immediately upon connection
-        await websocket.send_json(stats)
-
-    def disconnect(self, websocket: WebSocket):
-        if websocket in self.active_connections:
-            self.active_connections.remove(websocket)
-
-    async def broadcast(self):
-        for connection in self.active_connections[:]:
-            try:
-                await connection.send_json(stats)
-            except:
-                self.disconnect(connection)
-
-stats_manager = StatsManager()
-
-# --- 1. DASHBOARD PAGE (Jinja) ---
 @app.get("/", response_class=HTMLResponse)
-@app.get("/Gateway/", response_class=HTMLResponse) 
-async def dashboard_page(request: Request):
-    # Returns the HTML file using Jinja2
-    return templates.TemplateResponse("dashboard.html", {"request": request})
-
-# --- 2. DASHBOARD DATA STREAM ---
-@app.websocket("/")
-@app.websocket("/Gateway/")
-async def websocket_dashboard(websocket: WebSocket):
-    await stats_manager.connect(websocket)
-    try:
-        while True:
-            # Keep connection open, ignore incoming text (like "ping")
-            await websocket.receive_text()
-    except:
-        stats_manager.disconnect(websocket)
-
-# --- 3. CHAT BOT ENDPOINT ---
-@app.websocket("/chat")
-@app.websocket("/Gateway/chat")
-async def websocket_chat(websocket: WebSocket):
-    await websocket.accept()
-    global stats
-    print("Chat Client Connected!")
+@app.get("/Gateway/", response_class=HTMLResponse)
+async def main_action(request: Request):
     
-    try:
-        while True:
-            # 1. Receive Prompt
-            prompt = await websocket.receive_text()
-            print(f"Received Prompt: {prompt}")
-            
-            # Update Stats
-            stats["requests_from_user"] += 1
-            stats["last_prompt"] = prompt[:50] + "..."
-            await stats_manager.broadcast()
+    target = "minimal.py"
+    
+    # Create a string buffer to capture output
+    log_capture_string = io.StringIO()
 
+<<<<<<< HEAD
             # 2. Call Google AI
             try:
                 # Synchronous call wrapped in async if needed
@@ -127,9 +75,34 @@ async def websocket_chat(websocket: WebSocket):
                 stats["errors"] += 1
                 await websocket.send_text(f"Error processing request: {str(e)}")
                 await stats_manager.broadcast()
+=======
+    # Redirect stdout and stderr to our string buffer
+    with contextlib.redirect_stdout(log_capture_string), contextlib.redirect_stderr(log_capture_string):
+       
+>>>>>>> a0a57232adcb3c525b1c93076bb4dfb310a96de1
 
-    except WebSocketDisconnect:
-        print("Chat Client Disconnected")
+        try:
+            # Execute the target script
+            # Any print statements inside minimal.py will now go to log_capture_string
+            runpy.run_path(target)
+           
+        except Exception as e:
+            print(f"\n❌ \n execution: {e}")
+
+    # Get the captured content as a string
+    execution_logs = log_capture_string.getvalue()
+    
+    # Close the buffer
+    log_capture_string.close()
+
+    # Pass the logs to the template
+    return templates.TemplateResponse(
+        "dashboard.html", 
+        {
+            "request": request, 
+            "execution_logs": execution_logs
+        }
+    )
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=5013)

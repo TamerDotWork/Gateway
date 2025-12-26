@@ -40,20 +40,19 @@
         
         <div class="stage">
             <div class="container">
-   <h1>🚀 Governance Gateway</h1>
-    <p>System Agent Dashboard</p>
-
-    <!-- Controls -->
-    <div>
-        <button id="startBtn" onclick="startExecution()">Run Agent Script</button>
-        <span id="statusText">Ready</span>
-        <span id="indicator" class="status-indicator"></span>
+    <div class="terminal-output">
+        <!-- 
+           This loop connects to the Python generator.
+           It will print lines one by one as they are generated.
+        -->
+        {% for line in output_stream %}
+{{ line }}
+        {% endfor %}
     </div>
 
-    <!-- Terminal Output -->
-    <div class="terminal-window" id="terminalWindow">
-        <div id="output" class="terminal-output"></div>
-    </div>
+    <p style="color: #888;"><i>Execution Finished.</i></p>
+</div>
+
             </div>
         </div>
 

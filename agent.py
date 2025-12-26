@@ -1,55 +1,93 @@
-# agent.py
-import logging
-import importlib.util
-import warnings
+import uvicorn
+import os
 import sys
+import runpy
+import threading
+import queue
+import time
+from dotenv import load_dotenv
+from fastapi import FastAPI, Request
+from fastapi.responses import StreamingResponse
+from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
 
-# 1. Setup Logging
-logging.basicConfig(level=logging.INFO, format='[🛡️ GATEWAY] %(message)s')
+# Imports for running external scripts
+import agent 
 
-# 2. Fix the Google Warning
-#    This line hides the "All support for google.generativeai has ended" message
-warnings.filterwarnings("ignore", category=FutureWarning, module="google.generativeai")
+load_dotenv()
+API_KEY = os.getenv("GOOGLE_API_KEY")
 
-def patch_google_sdk():
-    """Patches Google GenAI (works for both Old and New SDKs)"""
+app = FastAPI()
+
+app.mount("/Gateway/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
+
+# --- Helper: Output Redirector ---
+class OutputRedirector:
+    def __init__(self, q):
+        self.q = q
+    def write(self, text):
+        self.q.put(text)
+    def flush(self):
+        pass
+
+@app.get("/", response_class=StreamingResponse)
+@app.get("/Gateway/", response_class=StreamingResponse)
+async def dashboard_page(request: Request):
+    """
+    Executes 'minimal.py' and streams the output directly into the
+    Jinja2 dashboard template.
+    """
+    target_script = "minimal.py"
     
-    # Check if the library is installed
-    if importlib.util.find_spec("google.generativeai") is None:
-        return
+    # 1. Create a Queue to hold the log output
+    log_queue = queue.Queue()
 
-    try:
-        import google.generativeai as genai
+    # 2. Define the background worker that runs the script
+    def script_worker():
+        # Redirect stdout/stderr to the queue
+        original_stdout = sys.stdout
+        original_stderr = sys.stderr
+        sys.stdout = OutputRedirector(log_queue)
+        sys.stderr = OutputRedirector(log_queue)
         
-        # Avoid double-patching
-        if getattr(genai.GenerativeModel.generate_content, "_is_governed", False):
-            return
-
-        original_fn = genai.GenerativeModel.generate_content
-
-        def governed_generate_content(self, contents, *args, **kwargs):
-            # --- GOVERNANCE ---
-            logging.info(f"Intercepted Prompt: {str(contents)[:50]}...")
+        try:
+            print(f"🚀 Launching {target_script} via Governance Gateway...")
+            print("-" * 50)
             
-            # Policy Example: Block the word "secret"
-            if "secret" in str(contents).lower():
-                logging.error("BLOCKED: Policy Violation")
-                raise ValueError("Sensitive data detected in prompt.")
+            # Execute the user's script
+            runpy.run_path(target_script, run_name="__main__")
+            
+            print(f"\n✅ {target_script} executed successfully.")
+        except Exception as e:
+            print(f"\n❌ Application Error: {e}")
+        finally:
+            # Restore stdout and signal end
+            sys.stdout = original_stdout
+            sys.stderr = original_stderr
+            log_queue.put(None) # None indicates the stream is finished
 
-            # --- EXECUTE ---
-            response = original_fn(self, contents, *args, **kwargs)
+    # 3. Start the script in a separate thread so it doesn't block
+    thread = threading.Thread(target=script_worker)
+    thread.start()
 
-            # --- MONITOR ---
-            logging.info("Response received successfully.")
-            return response
+    # 4. Define a generator that yields data to the Jinja template
+    def log_generator():
+        while True:
+            data = log_queue.get()
+            if data is None:
+                break
+            yield data
 
-        # Apply Patch
-        governed_generate_content._is_governed = True
-        genai.GenerativeModel.generate_content = governed_generate_content
-        logging.info("✅ Agent Attached: Governance Active")
-        
-    except Exception as e:
-        logging.warning(f"Agent failed to attach: {e}")
+    # 5. Get the template object directly
+    template = templates.get_template("dashboard.html")
 
-# Run the patcher immediately when this file is imported
-patch_google_sdk()
+    # 6. Stream the response. 
+    # We pass 'log_generator()' as the variable 'output_stream' to the template.
+    return StreamingResponse(
+        template.generate(request=request, output_stream=log_generator()),
+        media_type="text/html"
+    )
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=5013)

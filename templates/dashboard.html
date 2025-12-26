@@ -40,15 +40,19 @@
         
         <div class="stage">
             <div class="container">
-                <div class="logs-container">
-        <h3>Execution Logs:</h3>
-        
-        <!-- This is where the logs will appear -->
-        {% if execution_logs %}
-            <pre class="terminal-output">{{ execution_logs }}</pre>
-        {% else %}
-            <p>No logs available.</p>
-        {% endif %}
+   <h1>🚀 Governance Gateway</h1>
+    <p>System Agent Dashboard</p>
+
+    <!-- Controls -->
+    <div>
+        <button id="startBtn" onclick="startExecution()">Run Agent Script</button>
+        <span id="statusText">Ready</span>
+        <span id="indicator" class="status-indicator"></span>
+    </div>
+
+    <!-- Terminal Output -->
+    <div class="terminal-window" id="terminalWindow">
+        <div id="output" class="terminal-output"></div>
     </div>
             </div>
         </div>

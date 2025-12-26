@@ -1,50 +1,48 @@
-            // Dynamic WebSocket URL generation
-            const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-            
-            // Ensure path ends with / so it matches the Python route logic
-            let path = window.location.pathname;
-            if (!path.endsWith('/')) path += '/';
-            
-            // Build the full WebSocket URL
-            const wsUrl = `${protocol}://${window.location.host}${path}`;
-            console.log("Connecting to Dashboard WS:", wsUrl);
+ async function startExecution() {
+        const outputDiv = document.getElementById('output');
+        const startBtn = document.getElementById('startBtn');
+        const indicator = document.getElementById('indicator');
+        const statusText = document.getElementById('statusText');
+        const terminalWindow = document.getElementById('terminalWindow');
 
-            const ws = new WebSocket(wsUrl);
-            const dot = document.getElementById("dot");
-            const statusText = document.getElementById("status-text");
-            const statusContainer = document.getElementById("tag");
+        // Reset UI
+        outputDiv.textContent = ""; 
+        startBtn.disabled = true;
+        statusText.textContent = "Running minimal.py...";
+        indicator.className = "status-indicator status-running";
 
-            ws.onopen = () => {
+        try {
+            // Fetch the stream
+            const response = await fetch('/run-script');
+            
+            // Create a reader to read the stream
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+
+            while (true) {
+                // Read chunks of data
+                const { value, done } = await reader.read();
+                if (done) break;
+
+                // Decode chunk to text
+                const text = decoder.decode(value);
                 
-                dot.classList.remove("failure");
-                dot.classList.add("success");
-                statusContainer.classList.remove("failure");
-                statusContainer.classList.add("success");
-                // dot.style.backgroundColor = "#00ff00";
-                statusText.innerText = "Live Connected";
-                // Keep-alive ping
-                setInterval(() => { if(ws.readyState===1) ws.send("ping"); }, 2000);
-            };
+                // Append text to terminal
+                outputDiv.textContent += text;
+                
+                // Auto-scroll to bottom
+                terminalWindow.scrollTop = terminalWindow.scrollHeight;
+            }
 
-            ws.onmessage = function(event) {
-                try {
-                    const data = JSON.parse(event.data);
-                    if(data.requests_from_user !== undefined) {
-                        document.getElementById("req").innerText = data.requests_from_user;
-                        document.getElementById("res").innerText = data.responses_from_llm;
-                        document.getElementById("err").innerText = data.errors;
-                        document.getElementById("last_p").innerText = data.last_prompt;
-                    }
-                } catch(e) { 
-                    // Ignore non-JSON messages (like ping responses)
-                }
-            };
+            statusText.textContent = "Execution Complete";
+            indicator.className = "status-indicator status-done";
 
-            ws.onclose = () => {
-                dot.classList.remove("success");
-                dot.classList.add("failure");
-                statusContainer.classList.remove("success");
-                statusContainer.classList.add("failure");
-                // dot.style.backgroundColor = "red";
-                statusText.innerText = "Disconnected";
-            };
+        } catch (error) {
+            outputDiv.textContent += `\n❌ Connection Error: ${error}`;
+        } finally {
+            startBtn.disabled = false;
+        }
+    }
+
+    // Optional: Auto-start on load if desired
+    // window.onload = startExecution;

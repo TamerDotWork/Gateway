@@ -1,55 +1,97 @@
-# agent.py
-import logging
-import importlib.util
-import warnings
+import uvicorn
+import os
 import sys
+import runpy
+import threading
+import queue
+import time
+from dotenv import load_dotenv
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
 
-# 1. Setup Logging
-logging.basicConfig(level=logging.INFO, format='[🛡️ GATEWAY] %(message)s')
+# Imports for running external scripts
+import agent 
 
-# 2. Fix the Google Warning
-#    This line hides the "All support for google.generativeai has ended" message
-warnings.filterwarnings("ignore", category=FutureWarning, module="google.generativeai")
+load_dotenv()
+API_KEY = os.getenv("GOOGLE_API_KEY")
 
-def patch_google_sdk():
-    """Patches Google GenAI (works for both Old and New SDKs)"""
+app = FastAPI()
+
+app.mount("/Gateway/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
+
+# --- Custom Class to Redirect Print to Queue ---
+class OutputRedirector:
+    def __init__(self, q):
+        self.q = q
+
+    def write(self, text):
+        # Determine if we should flush immediately
+        self.q.put(text)
+
+    def flush(self):
+        pass
+
+# --- The Generator that streams data ---
+def script_output_generator(target_script):
+    log_queue = queue.Queue()
     
-    # Check if the library is installed
-    if importlib.util.find_spec("google.generativeai") is None:
-        return
-
-    try:
-        import google.generativeai as genai
+    def run_script_in_thread():
+        # Capture existing stdout so we can restore it later
+        original_stdout = sys.stdout
+        original_stderr = sys.stderr
         
-        # Avoid double-patching
-        if getattr(genai.GenerativeModel.generate_content, "_is_governed", False):
-            return
-
-        original_fn = genai.GenerativeModel.generate_content
-
-        def governed_generate_content(self, contents, *args, **kwargs):
-            # --- GOVERNANCE ---
-            logging.info(f"Intercepted Prompt: {str(contents)[:50]}...")
+        # Redirect stdout/stderr to our queue wrapper
+        sys.stdout = OutputRedirector(log_queue)
+        sys.stderr = OutputRedirector(log_queue)
+        
+        try:
+            log_queue.put(f"🚀 Launching {target_script} via Governance Gateway...\n")
+            log_queue.put("-" * 50 + "\n")
             
-            # Policy Example: Block the word "secret"
-            if "secret" in str(contents).lower():
-                logging.error("BLOCKED: Policy Violation")
-                raise ValueError("Sensitive data detected in prompt.")
+            # Run the script
+            runpy.run_path(target_script, run_name="__main__")
+            
+            log_queue.put(f"\n✅ {target_script} executed successfully.\n")
+        except Exception as e:
+            log_queue.put(f"\n❌ Application Error: {e}\n")
+        finally:
+            # Restore stdout/stderr
+            sys.stdout = original_stdout
+            sys.stderr = original_stderr
+            # Signal the end of the stream
+            log_queue.put(None)
 
-            # --- EXECUTE ---
-            response = original_fn(self, contents, *args, **kwargs)
+    # Start the script in a separate thread so it doesn't block the stream
+    thread = threading.Thread(target=run_script_in_thread)
+    thread.start()
 
-            # --- MONITOR ---
-            logging.info("Response received successfully.")
-            return response
+    # Yield data from queue as it arrives
+    while True:
+        data = log_queue.get()
+        if data is None:
+            break
+        yield data
 
-        # Apply Patch
-        governed_generate_content._is_governed = True
-        genai.GenerativeModel.generate_content = governed_generate_content
-        logging.info("✅ Agent Attached: Governance Active")
-        
-    except Exception as e:
-        logging.warning(f"Agent failed to attach: {e}")
+@app.get("/", response_class=HTMLResponse)
+@app.get("/Gateway/", response_class=HTMLResponse)
+async def dashboard_page(request: Request):
+    """
+    Renders the static dashboard. The JS inside will trigger the script execution.
+    """
+    return templates.TemplateResponse("dashboard.html", {"request": request})
 
-# Run the patcher immediately when this file is imported
-patch_google_sdk()
+@app.get("/run-script")
+async def run_script():
+    """
+    Endpoint called by JS to stream the output.
+    """
+    return StreamingResponse(
+        script_output_generator("minimal.py"), 
+        media_type="text/plain"
+    )
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=5013)

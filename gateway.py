@@ -22,7 +22,6 @@ app = FastAPI()
 
 app.mount("/Gateway/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
-<<<<<<< HEAD
 # --- GLOBAL STATE ---
 stats = {
     "requests_from_user": 0,
@@ -33,8 +32,6 @@ stats = {
     "total_output_tokens": 0,
     "total_tokens_used": 0,
 }
-=======
->>>>>>> a0a57232adcb3c525b1c93076bb4dfb310a96de1
 
 @app.get("/", response_class=HTMLResponse)
 @app.get("/Gateway/", response_class=HTMLResponse)
@@ -45,7 +42,6 @@ async def main_action(request: Request):
     # Create a string buffer to capture output
     log_capture_string = io.StringIO()
 
-<<<<<<< HEAD
             # 2. Call Google AI
             try:
                 # Synchronous call wrapped in async if needed
@@ -75,11 +71,6 @@ async def main_action(request: Request):
                 stats["errors"] += 1
                 await websocket.send_text(f"Error processing request: {str(e)}")
                 await stats_manager.broadcast()
-=======
-    # Redirect stdout and stderr to our string buffer
-    with contextlib.redirect_stdout(log_capture_string), contextlib.redirect_stderr(log_capture_string):
-       
->>>>>>> a0a57232adcb3c525b1c93076bb4dfb310a96de1
 
         try:
             # Execute the target script

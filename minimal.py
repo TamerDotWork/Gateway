@@ -12,7 +12,7 @@ if not API_KEY:
 genai.configure(api_key=API_KEY)
 model = genai.GenerativeModel('gemini-flash-latest')
 
-prompt = "Explain quantum computing in one sentence."
+prompt = "what is love?"
 response = model.generate_content(prompt)
 
 print(response.text)

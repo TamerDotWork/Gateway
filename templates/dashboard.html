@@ -39,7 +39,18 @@
     <main>
         
         <div class="stage">
-            <div class="container">stage</div>
+            <div class="container">
+                <div class="logs-container">
+        <h3>Execution Logs:</h3>
+        
+        <!-- This is where the logs will appear -->
+        {% if execution_logs %}
+            <pre class="terminal-output">{{ execution_logs }}</pre>
+        {% else %}
+            <p>No logs available.</p>
+        {% endif %}
+    </div>
+            </div>
         </div>
 
 

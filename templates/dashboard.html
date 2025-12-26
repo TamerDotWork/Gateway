@@ -40,7 +40,13 @@
         
         <div class="stage">
             <div class="container">
-  
+  <div class="terminal-window">
+                {% if execution_logs %}
+                    <pre>{{ execution_logs }}</pre>
+                {% else %}
+                    <div class="empty-logs">Script executed, but no output was returned.</div>
+                {% endif %}
+            </div>
             </div>
         </div>
 

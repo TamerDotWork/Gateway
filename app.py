@@ -12,7 +12,7 @@ async def chat_with_gateway():
         async with websockets.connect(uri) as websocket:
             print("✅ Connected!")
             
-            prompt = "What is the capital of Italy?"
+            prompt = "what is love?"
             print(f"📤 Sending: {prompt}")
             
             await websocket.send(prompt)

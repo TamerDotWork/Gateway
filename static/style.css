@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Google+Sans:ital,opsz,wght@0,17..18,400..700;1,17..18,400..700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Lato:ital,opsz,wght@0,17..18,400..700;1,17..18,400..700&display=swap');
 
 html {
     font-size: 12px;
@@ -7,7 +7,9 @@ html {
 
 body {
     background: #F3F5F9;
-    font-family: "Google Sans", sans-serif;
+
+   
+    font-family: "Lato", sans-serif;
     font-size: 1rem;
     line-height: 1.8rem;
     height: 100%;
@@ -16,7 +18,13 @@ body {
     margin: 0;
     padding: 0;
 }
-
+body.inner {
+    background: #F3F5F9;
+  background: url("bg.png");
+    background-repeat: no-repeat;
+    background-position: center center;
+     
+}
 main {
     height: 100%;
 
@@ -35,7 +43,20 @@ main {
     display: flex;
     gap: 1rem;
 }
-
+.core{
+        display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
+#total {
+    font-size: 4rem;
+     color: #556284;
+}
+.reaction{
+    margin-top: 36px;
+    max-width: 332px;
+}
 .breadcrumb {
     display: flex;
     flex-direction: row;
@@ -46,14 +67,18 @@ main {
     display: flex;
     flex-grow: 1;
     justify-content: space-between;
-    background: #003978;
+    background: #042362;
     border-radius: 8px;
     color: #fff;
-    padding: 1.4rem;
+    /* padding: 1.4rem; */
     margin-top: 1rem;
-
+    align-items: center;
+    height: 68px;
 }
-
+.logo{
+        display: flex;
+        margin-left: 1rem;
+}
 .hero {
     margin-top: 2rem;
     padding: 1.4rem;
@@ -95,8 +120,16 @@ main {
     flex-direction: row;
     align-items: center;
     list-style: none;
-    gap: 1rem;
-    padding: .5rem 2rem;
+ 
+    padding: .5rem 2rem; 
+    margin-bottom: 2rem;
+    padding: 1.4rem;
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: 8px;
+    /* box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1); */
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, .5);
 }
 
 .breadcrumb ul li {
@@ -105,7 +138,14 @@ main {
     align-items: center;
     list-style: none;
 }
-
+.breadcrumb ul li:first-child {
+font-weight: 800;
+}
+.breadcrumb ul li:first-child::after {
+content: "::";
+    margin-left: 1rem;
+    margin-right: 1rem;
+}
 .breadcrumb ul>li>a {
     display: flex;
     flex-direction: row;
@@ -135,7 +175,20 @@ h2 {
     padding-bottom: 0px;
     padding-top: 0px;
 }
-
+h3 {
+  color: #556284;
+    margin-top: 1rem;
+    margin-bottom: 0px;
+    padding-bottom: 0px;
+    padding-top: 0px;
+}
+h4 {
+    color: #556284;
+    margin-top: 0px;
+    margin-bottom: 0px;
+    padding-bottom: 0px;
+    padding-top: 0px;
+}
 p {
     color: #69778C;
     margin-top: 0px;
@@ -152,7 +205,7 @@ p {
 }
 
 .btn-primary {
-    background: #003978;
+    background: #042362;
     margin-top: 2rem;
     margin-right: 1rem;
 }
@@ -165,8 +218,32 @@ p {
 
 .btn-link {
     color: #69778C;
+        display: flex;
+    flex-direction: row;
+    align-items: center;
+    list-style: none;
+    padding: .5rem 2rem;
+    margin-bottom: 2rem;
+    margin-right: 2rem;
+    margin-top: 1rem;
+    padding: 1.4rem;
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: 8px;
+    /* box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1); */
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    border: 1px solid #69778C;
 }
-
+.settings{
+    display: flex;
+    border-radius: 0px 8px 8px 0px;
+    background: #3AA7F1;
+    flex-grow: 1;
+    height: 68px;
+    width: 68px;
+    justify-content: center;
+    align-items: center;
+}
 .tag {
     padding: .25rem 1rem;
     border-radius: 3rem;

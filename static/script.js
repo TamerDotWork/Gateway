@@ -13,6 +13,9 @@
             const dot = document.getElementById("dot");
             const statusText = document.getElementById("status-text");
             const statusContainer = document.getElementById("tag");
+            
+    
+
 
             ws.onopen = () => {
                 
@@ -29,11 +32,17 @@
             ws.onmessage = function(event) {
                 try {
                     const data = JSON.parse(event.data);
+                    console.log("Stats updated:", data);
                     if(data.requests_from_user !== undefined) {
                         document.getElementById("req").innerText = data.requests_from_user;
                         document.getElementById("res").innerText = data.responses_from_llm;
-                        document.getElementById("err").innerText = data.errors;
-                        document.getElementById("last_p").innerText = data.last_prompt;
+                        document.getElementById("err").innerText = data.errors ;
+                        // document.getElementById("last_p").innerText = data.last_prompt;
+                        document.getElementById("in").innerText = data.total_input_tokens;
+                        document.getElementById("out").innerText = data.total_output_tokens;
+                        document.getElementById("total").innerText = data.total_tokens_used ;
+
+                        console.log("Stats updated:", data);
                     }
                 } catch(e) { 
                     // Ignore non-JSON messages (like ping responses)

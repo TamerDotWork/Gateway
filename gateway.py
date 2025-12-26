@@ -1,19 +1,20 @@
 import uvicorn
 import os
-import io
-import contextlib
+import sys
 import runpy
+import threading
+import queue
+import time
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 
 # Imports for running external scripts
-import agent   # This assumes agent.py exists and handles governance
+import agent 
 
 load_dotenv()
-
 API_KEY = os.getenv("GOOGLE_API_KEY")
 
 app = FastAPI()
@@ -21,44 +22,75 @@ app = FastAPI()
 app.mount("/Gateway/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
+# --- Custom Class to Redirect Print to Queue ---
+class OutputRedirector:
+    def __init__(self, q):
+        self.q = q
+
+    def write(self, text):
+        # Determine if we should flush immediately
+        self.q.put(text)
+
+    def flush(self):
+        pass
+
+# --- The Generator that streams data ---
+def script_output_generator(target_script):
+    log_queue = queue.Queue()
+    
+    def run_script_in_thread():
+        # Capture existing stdout so we can restore it later
+        original_stdout = sys.stdout
+        original_stderr = sys.stderr
+        
+        # Redirect stdout/stderr to our queue wrapper
+        sys.stdout = OutputRedirector(log_queue)
+        sys.stderr = OutputRedirector(log_queue)
+        
+        try:
+            log_queue.put(f"🚀 Launching {target_script} via Governance Gateway...\n")
+            log_queue.put("-" * 50 + "\n")
+            
+            # Run the script
+            runpy.run_path(target_script, run_name="__main__")
+            
+            log_queue.put(f"\n✅ {target_script} executed successfully.\n")
+        except Exception as e:
+            log_queue.put(f"\n❌ Application Error: {e}\n")
+        finally:
+            # Restore stdout/stderr
+            sys.stdout = original_stdout
+            sys.stderr = original_stderr
+            # Signal the end of the stream
+            log_queue.put(None)
+
+    # Start the script in a separate thread so it doesn't block the stream
+    thread = threading.Thread(target=run_script_in_thread)
+    thread.start()
+
+    # Yield data from queue as it arrives
+    while True:
+        data = log_queue.get()
+        if data is None:
+            break
+        yield data
+
 @app.get("/", response_class=HTMLResponse)
 @app.get("/Gateway/", response_class=HTMLResponse)
 async def dashboard_page(request: Request):
     """
-    Renders the dashboard page and executes 'minimal.py',
-    capturing the output to display in the template.
+    Renders the static dashboard. The JS inside will trigger the script execution.
     """
-    target_script = "minimal.py"
-    
-    # Create a string buffer to capture output
-    log_capture_string = io.StringIO()
+    return templates.TemplateResponse("dashboard.html", {"request": request})
 
-    # Redirect stdout and stderr to our string buffer
-    with contextlib.redirect_stdout(log_capture_string), contextlib.redirect_stderr(log_capture_string):
-        print(f"🚀 Launching {target_script} via Governance Gateway...")
-        print("-" * 50)
-
-        try:
-            # Execute the target script
-            # Any print statements inside minimal.py will now go to log_capture_string
-            runpy.run_path(target_script, run_name="__main__")
-            print(f"✅ {target_script} executed successfully.")
-        except Exception as e:
-            print(f"\n❌ Application Error during {target_script} execution: {e}")
-
-    # Get the captured content as a string
-    execution_logs = log_capture_string.getvalue()
-    
-    # Close the buffer
-    log_capture_string.close()
-
-    # Pass the logs to the template
-    return templates.TemplateResponse(
-        "dashboard.html", 
-        {
-            "request": request, 
-            "execution_logs": execution_logs
-        }
+@app.get("/run-script")
+async def run_script():
+    """
+    Endpoint called by JS to stream the output.
+    """
+    return StreamingResponse(
+        script_output_generator("minimal.py"), 
+        media_type="text/plain"
     )
 
 if __name__ == "__main__":

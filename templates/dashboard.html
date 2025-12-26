@@ -5,12 +5,7 @@
     <title>The Gateway</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="static/style.css">
-<<<<<<< HEAD
-    <link rel="stylesheet" href="../static/style.css">
-=======
-  
  
->>>>>>> a0a57232adcb3c525b1c93076bb4dfb310a96de1
 </head>
 
 <body>
@@ -93,11 +88,11 @@
                         </svg>
                     </div>
                     <div>
-                        <img class="reaction" src="../static/core.png" alt=""><br><span id="total" class="tokens">0</span><br>
+                        <img class="reaction" src="static/core.png" alt=""><br><span id="total" class="tokens">0</span><br>
                         <h3>Total Tokens Used</h3>
                     </div>
                     <div>
-                                                <svg width="99" height="140" viewBox="0 0 99 140" fill="#fff" xmlns="http://www.w3.org/2000/svg">
+                            <svg width="99" height="140" viewBox="0 0 99 140" fill="#fff" xmlns="http://www.w3.org/2000/svg">
                    
                             <path data-figma-bg-blur-radius="79.2" d="M75.8253 5.27343C74.6778 2.10808 71.6712 0 68.3043 0H8.00767C2.37464 0 -1.49423 5.66663 0.556869 10.913L22.5186 67.087C23.2509 68.96 23.2509 71.04 22.5186 72.913L0.556865 129.087C-1.49424 134.333 2.37466 140 8.00768 140H68.3043C71.6712 140 74.6778 137.892 75.8253 134.727L98.3019 72.7266C98.9405 70.9649 98.9405 69.0351 98.3019 67.2734L75.8253 5.27343Z" fill="#fff" />
                             <defs>
@@ -132,6 +127,11 @@
             <div class="container">
                 <strong>Insights summary</strong>
                 <div class="row">
+                    <div class="terminal">
+                        <div id="log" class="log">{{ result }}</div>
+                    </div>
+                </div>
+                <div class="row">
                     <div class="card stat"> User Requests:<span id="req" class="value">0</span>
                     </div>
                     <div class="card stat"> LLM Responses:<span id="res" class="value">0</span>
@@ -147,7 +147,7 @@
         </div>
     </main>
     <script src="static/script.js"></script>
-    <script src="../static/script.js"></script>
+ 
 </body>
 
 </html>

@@ -10,8 +10,12 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-# --- CONFIGURATION ---
-# 1. Load environment variables from .env file
+# start.py
+import agent   # This runs your governance code
+import runpy   # This runs the user's script
+import sys
+
+ 
 load_dotenv()
 
 # 2. Retrieve API Key
@@ -25,111 +29,27 @@ client = genai.Client(api_key=API_KEY)
 
 app.mount("/Gateway/static", StaticFiles(directory="static"), name="static") 
 templates = Jinja2Templates(directory="templates")
-# --- GLOBAL STATE ---
-stats = {
-    "requests_from_user": 0,
-    "responses_from_llm": 0,
-    "errors": 0,
-    "last_prompt": "None",
-    "total_input_tokens": 0,
-    "total_output_tokens": 0,
-    "total_tokens_used": 0,
-}
 
-# --- CONNECTION MANAGER ---
-class StatsManager:
-    def __init__(self):
-        self.active_connections: List[WebSocket] = []
 
-    async def connect(self, websocket: WebSocket):
-        await websocket.accept()
-        self.active_connections.append(websocket)
-        # Send initial stats immediately upon connection
-        await websocket.send_json(stats)
-
-    def disconnect(self, websocket: WebSocket):
-        if websocket in self.active_connections:
-            self.active_connections.remove(websocket)
-
-    async def broadcast(self):
-        for connection in self.active_connections[:]:
-            try:
-                await connection.send_json(stats)
-            except:
-                self.disconnect(connection)
-
-stats_manager = StatsManager()
-
-# --- 1. DASHBOARD PAGE (Jinja) ---
+ 
 @app.get("/", response_class=HTMLResponse)
 @app.get("/Gateway/", response_class=HTMLResponse) 
 async def dashboard_page(request: Request):
-    # Returns the HTML file using Jinja2
-    return templates.TemplateResponse("dashboard.html", {"request": request})
 
-# --- 2. DASHBOARD DATA STREAM ---
-@app.websocket("/")
-@app.websocket("/Gateway/")
-async def websocket_dashboard(websocket: WebSocket):
-    await stats_manager.connect(websocket)
+
     try:
-        while True:
-            # Keep connection open, ignore incoming text (like "ping")
-            await websocket.receive_text()
-    except:
-        stats_manager.disconnect(websocket)
+        ns = runpy.run_path("minimal.py")
 
-# --- 3. CHAT BOT ENDPOINT ---
-@app.websocket("/chat")
-@app.websocket("/Gateway/chat")
-async def websocket_chat(websocket: WebSocket):
-    await websocket.accept()
-    global stats
-    print("Chat Client Connected!")
-    
-    try:
-        while True:
-            # 1. Receive Prompt
-            prompt = await websocket.receive_text()
-            print(f"Received Prompt: {prompt}")
-            
-            # Update Stats
-            stats["requests_from_user"] += 1
-            stats["last_prompt"] = prompt[:50] + "..."
-            await stats_manager.broadcast()
+        # Expect the script to define OUTPUT variable
+        result = ns.get("OUTPUT", "No return value found")
+        print(result)
+    except Exception as e:
+        result = f"❌ Application Error: {str(e)}"
 
-            # 2. Call Google AI
-            try:
-                # Synchronous call wrapped in async if needed
-                response = client.models.generate_content(
-                    model="gemini-flash-latest", 
-                    contents=prompt
-                )
-                response_text = response.text
-                
-                # Add token counting:
-                input_tokens = response.usage_metadata.prompt_token_count
-                output_tokens = response.usage_metadata.candidates_token_count
-                total_tokens = response.usage_metadata.total_token_count
-
-
-                # 3. Send Response
-                await websocket.send_text(response_text)
-                stats["responses_from_llm"] += 1
-                stats["total_input_tokens"] += input_tokens
-                stats["total_output_tokens"] += output_tokens
-                stats["total_tokens_used"] += total_tokens
-                await stats_manager.broadcast()
-
-                
-            except Exception as e:
-                print(f"AI Error: {e}")
-                stats["errors"] += 1
-                await websocket.send_text(f"Error processing request: {str(e)}")
-                await stats_manager.broadcast()
-
-    except WebSocketDisconnect:
-        print("Chat Client Disconnected")
+    return templates.TemplateResponse(
+        "dashboard.html",
+        {"request": request, "result": result}
+    )
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=5013)

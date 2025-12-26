@@ -34,16 +34,15 @@ async def main_action(request: Request):
 
     # Redirect stdout and stderr to our string buffer
     with contextlib.redirect_stdout(log_capture_string), contextlib.redirect_stderr(log_capture_string):
-        print(f"🚀 Launching {target} via Governance Gateway...")
-        print("-" * 50)
+       
 
         try:
             # Execute the target script
             # Any print statements inside minimal.py will now go to log_capture_string
             runpy.run_path(target)
-            print(f"✅ {target} executed successfully.")
+           
         except Exception as e:
-            print(f"\n❌ Application Error during {target} \n execution: {e}")
+            print(f"\n❌ \n execution: {e}")
 
     # Get the captured content as a string
     execution_logs = log_capture_string.getvalue()

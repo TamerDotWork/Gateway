@@ -40,19 +40,9 @@
         
         <div class="stage">
             <div class="container">
-    <div class="terminal-output">
-        <!-- 
-           This loop connects to the Python generator.
-           It will print lines one by one as they are generated.
-        -->
-        {% for line in output_stream %}
-{{ line }}
-        {% endfor %}
-    </div>
-
-    <p style="color: #888;"><i>Execution Finished.</i></p>
-</div>
-
+         <div class="terminal">
+{{ execution_logs }}
+        </div>
             </div>
         </div>
 
